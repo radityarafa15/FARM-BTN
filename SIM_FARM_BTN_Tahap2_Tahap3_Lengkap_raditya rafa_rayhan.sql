@@ -5,12 +5,6 @@
 -- Database Engine: SQL Server
 -- Login aplikasi (Form_InputTelur.java): sa / admin1234
 -- ============================================================
--- Catatan kompatibilitas:
--- Struktur tabel TIDAK diubah secara fundamental supaya Trigger,
--- Function (Tahap 3), dan aplikasi Java CRUD (Tahap 4) tetap jalan.
--- Perbaikan di versi ini: tambah komentar, lengkapi constraint
--- (UNIQUE, CHECK tambahan), dan tambah ALTER TABLE sesuai rubrik.
--- ============================================================
 
 -- ==========================================
 -- 1. SETUP DATABASE (DROP IF EXISTS -> CREATE)
