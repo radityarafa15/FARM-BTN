@@ -20,8 +20,8 @@ public class Form_InputTelur extends javax.swing.JFrame {
     private Connection conn;
     private final DefaultTableModel tableModel;
     private static final String DB_URL = "jdbc:sqlserver://localhost:1433;databaseName=SIM_FARM_BTN;encrypt=true;trustServerCertificate=true;";
-    private static final String DB_USER = "sa"; 
-    private static final String DB_PASS = "admin1234"; 
+    private static final String DB_USER = "user"; 
+    private static final String DB_PASS = "pw"; 
     private static final java.util.logging.Logger logger = java.util.logging.Logger.getLogger(Form_InputTelur.class.getName());
 
     /**
