@@ -6,10 +6,8 @@
 -- Login aplikasi (Form_InputTelur.java): sa / admin1234
 -- ============================================================
 
--- ==========================================
 -- 1. SETUP DATABASE (DROP IF EXISTS -> CREATE)
 --    Idempotent: bisa dijalankan ulang tanpa error
--- ==========================================
 USE master;
 GO
 IF EXISTS (SELECT name FROM sys.databases WHERE name = 'SIM_FARM_BTN')
@@ -24,236 +22,204 @@ GO
 USE SIM_FARM_BTN;
 GO
 
--- ==========================================
 -- 2. CREATE TABLE (DDL)
--- ==========================================
 
--- ------------------------------------------------------------
 -- Tabel: Farm
 -- Master data 5 lokasi farm milik Berkah Telur Nusantara.
 -- UNIQUE pada nama_farm supaya tidak ada nama farm duplikat.
--- ------------------------------------------------------------
 CREATE TABLE Farm (
-    farm_id   INT IDENTITY(1,1) PRIMARY KEY,   -- PK auto-increment
+    farm_id INT IDENTITY(1,1) PRIMARY KEY,   -- PK auto-increment
     nama_farm VARCHAR(100) NOT NULL UNIQUE,    -- UNIQUE: cegah nama farm ganda
-    lokasi    VARCHAR(100) NOT NULL
+    lokasi VARCHAR(100) NOT NULL
 );
 GO
 
--- ------------------------------------------------------------
 -- Tabel: Kandang
 -- Setiap farm punya beberapa kandang. tipe_kandang default
 -- 'Baterai' karena itu tipe paling umum dipakai BTN.
--- ------------------------------------------------------------
 CREATE TABLE Kandang (
-    kandang_id   INT IDENTITY(1,1) PRIMARY KEY,
-    farm_id      INT NOT NULL,                              -- FK ke Farm
+    kandang_id INT IDENTITY(1,1) PRIMARY KEY,
+    farm_id INT NOT NULL, -- FK ke Farm
     nama_kandang VARCHAR(50) NOT NULL,
-    kapasitas    INT CHECK (kapasitas > 0),                  -- CHECK: kapasitas wajib positif
-    tipe_kandang VARCHAR(50) DEFAULT 'Baterai'                -- DEFAULT: tipe paling umum
+    kapasitas INT CHECK (kapasitas > 0), -- CHECK: kapasitas wajib positif
+    tipe_kandang VARCHAR(50) DEFAULT 'Baterai' -- DEFAULT: tipe paling umum
         CHECK (tipe_kandang IN ('Baterai', 'Lantai', 'Koloni')),
     CONSTRAINT uq_kandang_per_farm UNIQUE (farm_id, nama_kandang), -- UNIQUE: nama kandang tidak boleh duplikat dalam 1 farm
     FOREIGN KEY (farm_id) REFERENCES Farm(farm_id)
 );
 GO
 
--- ------------------------------------------------------------
 -- Tabel: Batch
 -- Periode ternak per kandang. Satu kandang bisa punya beberapa
 -- batch sepanjang waktu (gantian setiap ±18 bulan/afkir).
--- ------------------------------------------------------------
 CREATE TABLE Batch (
-    batch_id        INT IDENTITY(1,1) PRIMARY KEY,
-    kandang_id      INT NOT NULL,                            -- FK ke Kandang
-    tanggal_mulai   DATE NOT NULL DEFAULT GETDATE(),          -- DEFAULT: tanggal hari ini jika tidak diisi
-    tanggal_selesai DATE NULL,                                -- NULL = batch masih aktif/berjalan
-    jumlah_awal     INT CHECK (jumlah_awal >= 0),             -- CHECK: tidak boleh negatif
-    jumlah_sekarang INT CHECK (jumlah_sekarang >= 0),         -- CHECK: tidak boleh negatif (dijaga juga oleh trigger Tahap 3)
+    batch_id INT IDENTITY(1,1) PRIMARY KEY,
+    kandang_id INT NOT NULL, -- FK ke Kandang
+    tanggal_mulai DATE NOT NULL DEFAULT GETDATE(), -- DEFAULT: tanggal hari ini jika tidak diisi
+    tanggal_selesai DATE NULL, -- NULL = batch masih aktif/berjalan
+    jumlah_awal INT CHECK (jumlah_awal >= 0), -- CHECK: tidak boleh negatif
+    jumlah_sekarang INT CHECK (jumlah_sekarang >= 0), -- CHECK: tidak boleh negatif (dijaga juga oleh trigger Tahap 3)
     FOREIGN KEY (kandang_id) REFERENCES Kandang(kandang_id)
 );
 GO
 
--- ------------------------------------------------------------
 -- Tabel: Karyawan
 -- Implementasi EERD: satu tabel dengan kolom peran_karyawan
 -- sebagai diskriminator (Manajer/Mandor/Pekerja/Dokter Hewan).
 -- UNIQUE pada no_hp supaya tidak ada nomor HP ganda.
--- ------------------------------------------------------------
 CREATE TABLE Karyawan (
-    karyawan_id    INT IDENTITY(1,1) PRIMARY KEY,
-    nama_karyawan  VARCHAR(100) NOT NULL,
-    no_hp          VARCHAR(20) UNIQUE,                        -- UNIQUE: 1 nomor HP = 1 karyawan
+    karyawan_id INT IDENTITY(1,1) PRIMARY KEY,
+    nama_karyawan VARCHAR(100) NOT NULL,
+    no_hp VARCHAR(20) UNIQUE, -- UNIQUE: 1 nomor HP = 1 karyawan
     peran_karyawan VARCHAR(50) NOT NULL
         CHECK (peran_karyawan IN ('Manajer', 'Mandor', 'Pekerja', 'Dokter Hewan')), -- CHECK: batasi ke 4 peran valid
-    farm_id        INT NOT NULL,                              -- FK ke Farm (farm tempat bertugas)
+    farm_id INT NOT NULL, -- FK ke Farm (farm tempat bertugas)
     FOREIGN KEY (farm_id) REFERENCES Farm(farm_id)
 );
 GO
 
--- ------------------------------------------------------------
 -- Tabel: Supplier
 -- Vendor pemasok pakan dan obat/vaksin.
 -- UNIQUE pada nama_supplier supaya tidak ada vendor tercatat dobel.
--- ------------------------------------------------------------
 CREATE TABLE Supplier (
-    supplier_id   INT IDENTITY(1,1) PRIMARY KEY,
-    nama_supplier VARCHAR(100) NOT NULL UNIQUE,   -- UNIQUE: cegah supplier ganda
-    alamat        VARCHAR(200),
-    telepon       VARCHAR(20)
+    supplier_id INT IDENTITY(1,1) PRIMARY KEY,
+    nama_supplier VARCHAR(100) NOT NULL UNIQUE, -- UNIQUE: cegah supplier ganda
+    alamat VARCHAR(200),
+    telepon VARCHAR(20)
 );
 GO
 
--- ------------------------------------------------------------
 -- Tabel: Pakan
 -- Master jenis pakan + stok global (dikelola terpusat oleh BTN).
--- ------------------------------------------------------------
 CREATE TABLE Pakan (
-    pakan_id    INT IDENTITY(1,1) PRIMARY KEY,
-    supplier_id INT,                                          -- FK ke Supplier
-    nama_pakan  VARCHAR(100) NOT NULL,
-    jenis       VARCHAR(50)
+    pakan_id INT IDENTITY(1,1) PRIMARY KEY,
+    supplier_id INT, -- FK ke Supplier
+    nama_pakan VARCHAR(100) NOT NULL,
+    jenis VARCHAR(50)
         CHECK (jenis IN ('Starter', 'Grower', 'Layer', 'Layer Plus')), -- CHECK: batasi kategori jenis pakan
-    stok        INT CHECK (stok >= 0) DEFAULT 0,               -- CHECK + DEFAULT: stok tidak boleh negatif, mulai dari 0
+    stok INT CHECK (stok >= 0) DEFAULT 0, -- CHECK + DEFAULT: stok tidak boleh negatif, mulai dari 0
     FOREIGN KEY (supplier_id) REFERENCES Supplier(supplier_id)
 );
 GO
 
--- ------------------------------------------------------------
 -- Tabel: Obat_Vaksin
 -- Master obat, vaksin, vitamin, dan desinfektan.
--- ------------------------------------------------------------
 CREATE TABLE Obat_Vaksin (
-    obat_id     INT IDENTITY(1,1) PRIMARY KEY,
-    supplier_id INT,                                          -- FK ke Supplier
-    nama_obat   VARCHAR(100) NOT NULL,
-    jenis       VARCHAR(50)
+    obat_id INT IDENTITY(1,1) PRIMARY KEY,
+    supplier_id INT, -- FK ke Supplier
+    nama_obat VARCHAR(100) NOT NULL,
+    jenis VARCHAR(50)
         CHECK (jenis IN ('Vaksin', 'Obat', 'Vitamin', 'Desinfektan')), -- CHECK: batasi kategori
-    stok        INT CHECK (stok >= 0) DEFAULT 0,               -- CHECK + DEFAULT
+    stok INT CHECK (stok >= 0) DEFAULT 0, -- CHECK + DEFAULT
     FOREIGN KEY (supplier_id) REFERENCES Supplier(supplier_id)
 );
 GO
 
--- ------------------------------------------------------------
 -- Tabel: Feeding
 -- Transaksi konsumsi pakan harian per batch.
 -- Trigger trg_KurangiStokPakan (Tahap 3) otomatis kurangi
 -- Pakan.stok setiap kali ada INSERT di tabel ini.
--- ------------------------------------------------------------
 CREATE TABLE Feeding (
     feeding_id INT IDENTITY(1,1) PRIMARY KEY,
-    tanggal    DATE NOT NULL DEFAULT GETDATE(),                -- DEFAULT: tanggal hari ini
-    batch_id   INT NOT NULL,                                   -- FK ke Batch
-    pakan_id   INT NOT NULL,                                   -- FK ke Pakan
-    jumlah_kg  DECIMAL(10,2) CHECK (jumlah_kg > 0),             -- CHECK: jumlah pakan wajib positif
+    tanggal DATE NOT NULL DEFAULT GETDATE(), -- DEFAULT: tanggal hari ini
+    batch_id INT NOT NULL, -- FK ke Batch
+    pakan_id INT NOT NULL, -- FK ke Pakan
+    jumlah_kg DECIMAL(10,2) CHECK (jumlah_kg > 0), -- CHECK: jumlah pakan wajib positif
     FOREIGN KEY (batch_id) REFERENCES Batch(batch_id),
     FOREIGN KEY (pakan_id) REFERENCES Pakan(pakan_id)
 );
 GO
 
--- ------------------------------------------------------------
 -- Tabel: Panen_Telur
 -- Transaksi panen telur harian, dipecah per grade (A/B/C/Afkir).
 -- Kolom & relasi disamakan dengan query di Form_InputTelur.java
 -- (loadPanenData, addPanen, BtnuUpdateActionPerformed).
--- ------------------------------------------------------------
 CREATE TABLE Panen_Telur (
-    panen_id      INT IDENTITY(1,1) PRIMARY KEY,
-    panen_tanggal DATE NOT NULL DEFAULT GETDATE(),             -- DEFAULT: tanggal hari ini
-    batch_id      INT NOT NULL,                                -- FK ke Batch
-    grade_telur   VARCHAR(20)
-        CHECK (grade_telur IN ('A','B','C','Pecah/Afkir')),    -- CHECK: batasi ke 4 grade valid
-    jumlah_butir  INT CHECK (jumlah_butir >= 0),                -- CHECK: tidak boleh negatif
-    berat_kg      DECIMAL(10,2) CHECK (berat_kg >= 0),          -- CHECK: tidak boleh negatif
-    karyawan_id   INT NOT NULL,                                 -- FK ke Karyawan (mandor pencatat)
+    panen_id INT IDENTITY(1,1) PRIMARY KEY,
+    panen_tanggal DATE NOT NULL DEFAULT GETDATE(), -- DEFAULT: tanggal hari ini
+    batch_id INT NOT NULL, -- FK ke Batch
+    grade_telur VARCHAR(20)
+        CHECK (grade_telur IN ('A','B','C','Pecah/Afkir')), -- CHECK: batasi ke 4 grade valid
+    jumlah_butir INT CHECK (jumlah_butir >= 0), -- CHECK: tidak boleh negatif
+    berat_kg DECIMAL(10,2) CHECK (berat_kg >= 0), -- CHECK: tidak boleh negatif
+    karyawan_id INT NOT NULL, -- FK ke Karyawan (mandor pencatat)
     FOREIGN KEY (batch_id) REFERENCES Batch(batch_id),
     FOREIGN KEY (karyawan_id) REFERENCES Karyawan(karyawan_id)
 );
 GO
 
--- ------------------------------------------------------------
 -- Tabel: Mortality
 -- Pencatatan kematian ayam harian per batch.
 -- Trigger trg_KurangiPopulasi (Tahap 3) otomatis kurangi
 -- Batch.jumlah_sekarang setiap kali ada INSERT di tabel ini.
--- ------------------------------------------------------------
 CREATE TABLE Mortality (
     mortality_id INT IDENTITY(1,1) PRIMARY KEY,
-    tanggal      DATE NOT NULL DEFAULT GETDATE(),
-    batch_id     INT NOT NULL,                                  -- FK ke Batch
-    jumlah_mati  INT CHECK (jumlah_mati >= 0),                   -- CHECK: tidak boleh negatif
-    penyebab     VARCHAR(100)
+    tanggal DATE NOT NULL DEFAULT GETDATE(),
+    batch_id INT NOT NULL, -- FK ke Batch
+    jumlah_mati INT CHECK (jumlah_mati >= 0), -- CHECK: tidak boleh negatif
+    penyebab VARCHAR(100)
         CHECK (penyebab IN ('Sakit', 'Kanibalisme', 'Tidak Diketahui', 'Afkir')), -- CHECK: batasi 4 penyebab valid
     FOREIGN KEY (batch_id) REFERENCES Batch(batch_id)
 );
 GO
 
--- ------------------------------------------------------------
 -- Tabel: Vaksinasi
 -- Pencatatan tindakan medis (vaksin/obat) per batch.
 -- dokter_id merujuk ke Karyawan dengan peran 'Dokter Hewan'.
--- ------------------------------------------------------------
 CREATE TABLE Vaksinasi (
     vaksinasi_id INT IDENTITY(1,1) PRIMARY KEY,
-    tanggal      DATE NOT NULL DEFAULT GETDATE(),
-    batch_id     INT NOT NULL,                                  -- FK ke Batch
-    obat_id      INT NOT NULL,                                  -- FK ke Obat_Vaksin
-    dosis        VARCHAR(50),
-    dokter_id    INT,                                           -- FK ke Karyawan (dokter hewan)
+    tanggal DATE NOT NULL DEFAULT GETDATE(),
+    batch_id INT NOT NULL, -- FK ke Batch
+    obat_id INT NOT NULL, -- FK ke Obat_Vaksin
+    dosis VARCHAR(50),
+    dokter_id INT, -- FK ke Karyawan (dokter hewan)
     FOREIGN KEY (batch_id) REFERENCES Batch(batch_id),
     FOREIGN KEY (obat_id) REFERENCES Obat_Vaksin(obat_id),
     FOREIGN KEY (dokter_id) REFERENCES Karyawan(karyawan_id)
 );
 GO
 
--- ------------------------------------------------------------
 -- Tabel: Customer
 -- Pembeli telur: Supermarket, Agen/Pasar, atau Pabrik Roti.
--- ------------------------------------------------------------
 CREATE TABLE Customer (
-    customer_id    INT IDENTITY(1,1) PRIMARY KEY,
-    nama_customer  VARCHAR(100) NOT NULL,
+    customer_id INT IDENTITY(1,1) PRIMARY KEY,
+    nama_customer VARCHAR(100) NOT NULL,
     jenis_customer VARCHAR(50)
         CHECK (jenis_customer IN ('Supermarket', 'Agen/Pasar', 'Pabrik Roti')), -- CHECK: batasi 3 jenis
-    alamat         VARCHAR(200)
+    alamat VARCHAR(200)
 );
 GO
 
--- ------------------------------------------------------------
 -- Tabel: Penjualan
 -- Transaksi penjualan telur ke customer, per farm.
--- ------------------------------------------------------------
 CREATE TABLE Penjualan (
     penjualan_id INT IDENTITY(1,1) PRIMARY KEY,
-    tanggal      DATE NOT NULL DEFAULT GETDATE(),
-    farm_id      INT NOT NULL,                                  -- FK ke Farm (asal telur dijual)
-    customer_id  INT NOT NULL,                                  -- FK ke Customer
-    total_harga  DECIMAL(15,2) CHECK (total_harga >= 0),         -- CHECK: tidak boleh negatif
+    tanggal DATE NOT NULL DEFAULT GETDATE(),
+    farm_id INT NOT NULL,                                  -- FK ke Farm (asal telur dijual)
+    customer_id INT NOT NULL,                                  -- FK ke Customer
+    total_harga DECIMAL(15,2) CHECK (total_harga >= 0),         -- CHECK: tidak boleh negatif
     FOREIGN KEY (farm_id) REFERENCES Farm(farm_id),
     FOREIGN KEY (customer_id) REFERENCES Customer(customer_id)
 );
 GO
 
--- ------------------------------------------------------------
 -- Tabel: Detail_Penjualan
 -- Rincian per grade telur dalam satu transaksi penjualan.
--- ------------------------------------------------------------
 CREATE TABLE Detail_Penjualan (
-    detail_id    INT IDENTITY(1,1) PRIMARY KEY,
+    detail_id INT IDENTITY(1,1) PRIMARY KEY,
     penjualan_id INT NOT NULL,                                  -- FK ke Penjualan
-    grade_telur  VARCHAR(20)
+    grade_telur VARCHAR(20)
         CHECK (grade_telur IN ('A','B','C','Pecah/Afkir')),     -- CHECK: konsisten dgn grade di Panen_Telur
-    jumlah       INT CHECK (jumlah >= 0),                        -- CHECK: tidak boleh negatif
+    jumlah INT CHECK (jumlah >= 0),                        -- CHECK: tidak boleh negatif
     harga_satuan DECIMAL(10,2) CHECK (harga_satuan >= 0),        -- CHECK: tidak boleh negatif
     FOREIGN KEY (penjualan_id) REFERENCES Penjualan(penjualan_id)
 );
 GO
 
--- ==========================================
 -- 3. ALTER TABLE
 --    Ditambahkan setelah CREATE supaya sesuai rubrik Tahap 2
 --    poin 1 ("CREATE DATABASE, CREATE TABLE, ALTER TABLE").
 --    Perubahan dipilih agar tetap aman bagi Trigger/Function/Java.
--- ==========================================
 
 -- Tambah kolom keterangan opsional di Mortality untuk catatan detail
 -- (tidak dipakai trigger/Java manapun, jadi aman ditambahkan)
@@ -275,11 +241,9 @@ ALTER TABLE Batch
 ADD CONSTRAINT chk_batch_tanggal CHECK (tanggal_selesai IS NULL OR tanggal_selesai > tanggal_mulai);
 GO
 
--- ==========================================
 -- 4. TRIGGERS & FUNCTIONS (Tahap 3)
 --    Tetap disertakan di sini supaya 1 file ini lengkap
 --    dan bisa dijalankan dari awal sampai akhir tanpa error.
--- ==========================================
 
 -- Trigger: setiap ada INSERT di Mortality, otomatis kurangi
 -- populasi (jumlah_sekarang) di tabel Batch terkait.
@@ -323,11 +287,9 @@ BEGIN
 END;
 GO
 
--- ==========================================
 -- 4b. STORED PROCEDURE (Tahap 3)
 --     Laporan kinerja farm pada rentang tanggal tertentu:
 --     total telur, total pakan, total kematian per farm.
--- ==========================================
 CREATE PROCEDURE sp_GetLaporanKinerjaFarm
     @tanggal_awal DATE,
     @tanggal_akhir DATE
@@ -340,10 +302,10 @@ BEGIN
         ISNULL(fd.total_pakan_kg, 0)                            AS total_pakan_kg,
         ISNULL(mt.total_mati, 0)                                AS total_mati
     FROM Farm f
-    JOIN Kandang k          ON k.farm_id = f.farm_id
-    JOIN Batch b             ON b.kandang_id = k.kandang_id
-    JOIN Panen_Telur pt      ON pt.batch_id = b.batch_id
-                             AND pt.panen_tanggal BETWEEN @tanggal_awal AND @tanggal_akhir
+    JOIN Kandang k ON k.farm_id = f.farm_id
+    JOIN Batch b ON b.kandang_id = k.kandang_id
+    JOIN Panen_Telur pt ON pt.batch_id = b.batch_id
+    AND pt.panen_tanggal BETWEEN @tanggal_awal AND @tanggal_akhir
     LEFT JOIN (
         SELECT b2.kandang_id, SUM(fe.jumlah_kg) AS total_pakan_kg
         FROM Feeding fe
@@ -555,9 +517,7 @@ INSERT INTO Detail_Penjualan (penjualan_id, grade_telur, jumlah, harga_satuan) V
 (7, 'A', 2300, 3500), (7, 'B', 420, 2500), (7, 'C', 250, 1500);
 GO
 
--- ==========================================
 -- 6. VERIFIKASI
--- ==========================================
 PRINT '=== SUKSES! JUMLAH RECORD PER TABEL ===';
 SELECT 'Farm' AS Tabel, COUNT(*) AS Jumlah FROM Farm UNION ALL
 SELECT 'Kandang', COUNT(*) FROM Kandang UNION ALL
@@ -575,10 +535,8 @@ SELECT 'Penjualan', COUNT(*) FROM Penjualan UNION ALL
 SELECT 'Detail_Penjualan', COUNT(*) FROM Detail_Penjualan;
 GO
 
--- ==========================================
 -- 7. TEST QUERY YANG DIPAKAI Form_InputTelur.java
 --    Pastikan tetap kompatibel setelah ALTER TABLE di atas
--- ==========================================
 SELECT p.panen_id, p.panen_tanggal, k.nama_kandang,
        p.grade_telur, p.jumlah_butir, p.berat_kg
 FROM Panen_Telur p
@@ -593,10 +551,8 @@ GO
 SELECT karyawan_id, nama_karyawan FROM Karyawan WHERE peran_karyawan='Mandor' ORDER BY nama_karyawan;
 GO
 
--- ==========================================
 -- 8. QUERY KOMPLEKS (Tahap 3)
 --    Minimal 3 query: JOIN + Subquery + Aggregation (GROUP BY/HAVING)
--- ==========================================
 
 -- Query 1: Total produksi telur per farm per hari (JOIN + GROUP BY)
 SELECT
@@ -648,12 +604,9 @@ WHERE EXISTS (SELECT 1 FROM Mortality m WHERE m.batch_id = b.batch_id)
 ORDER BY mortality_rate_persen DESC;
 GO
 
--- ==========================================
 -- 9. PIVOT (Tahap 3)
 --    Rekap total telur (kg) per Farm (baris) per Tanggal (kolom)
---    Sesuai contoh format dashboard di panduan proyek.
--- ==========================================
-SELECT nama_farm,
+--    Sesuai contoh format dashboard di panduan proyek.SELECT nama_farm,
        [2026-06-17] AS Tgl_17_Juni,
        [2026-06-18] AS Tgl_18_Juni,
        [2026-06-19] AS Tgl_19_Juni

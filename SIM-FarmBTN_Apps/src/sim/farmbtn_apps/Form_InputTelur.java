@@ -24,9 +24,6 @@ public class Form_InputTelur extends javax.swing.JFrame {
     private static final String DB_PASS = "pw"; 
     private static final java.util.logging.Logger logger = java.util.logging.Logger.getLogger(Form_InputTelur.class.getName());
 
-    /**
-     * form input dari baris pilihan di tabel
-     */
     private void fillFieldsFromTable() {
         int row = jTblPanen.getSelectedRow();
         if (row == -1) return;
