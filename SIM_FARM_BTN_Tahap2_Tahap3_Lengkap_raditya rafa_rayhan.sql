@@ -2,7 +2,9 @@
 -- TAHAP 2: Implementasi Fisik Database (DDL + DML)
 -- Login aplikasi (Form_InputTelur.java): sa / admin1234
 -- ============================================================
--- Muhammad Taufiqul Hafizh (255150207111017)
+-- Raditya Rafa Pratama (255150207111020)
+-- Ahmad Rayhan Ardhani Putra (255150207111027)
+
 -- ==========================================
 -- 1. SETUP DATABASE (DROP IF EXISTS -> CREATE)
 --    Idempotent: bisa dijalankan ulang tanpa error
