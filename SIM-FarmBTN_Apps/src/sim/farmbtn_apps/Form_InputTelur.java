@@ -1,9 +1,5 @@
 /*
     Muhammad Taufiqul Hafizh (255150207111017)
-    Raditya Rafa Pratama (255150207111020)
-    Ahmad Rayhan Ardhani Putra (255150207111027)
-    Rifqi Fadhil Abrar (255150200111015)
-    Tubagus Arya Yusuf Shauma (255150200111012)
 */
 
 package sim.farmbtn_apps;
