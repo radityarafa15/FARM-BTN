@@ -4,6 +4,9 @@
 -- ============================================================
 -- Raditya Rafa Pratama (255150207111020)
 -- Ahmad Rayhan Ardhani Putra (255150207111027)
+-- Muhammad Taufiqul Hafizh (255150207111017)
+-- Rifqi Fadhil Abrar (255150200111015)
+-- Tubagus Arya Yusuf Shauma (255150200111012)
 -- ==========================================
 -- 1. SETUP DATABASE (DROP IF EXISTS -> CREATE)
 --    Idempotent: bisa dijalankan ulang tanpa error
